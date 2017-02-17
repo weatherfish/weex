@@ -7,7 +7,7 @@ const proto = {
   create () {
     const node = document.createElement('div')
     node.classList.add('weex-container')
-    node.style.fontSize = DEFAULT_FONT_SIZE * this.data.scale + 'px'
+    node.style.fontSize = DEFAULT_FONT_SIZE + 'px'
     this.textNode = document.createElement('span')
     // Give the developers the ability to control space
     // and line-breakers.
@@ -15,7 +15,7 @@ const proto = {
     this.textNode.style.wordWrap = 'break-word'
     this.textNode.style.display = '-webkit-box'
     this.textNode.style.webkitBoxOrient = 'vertical'
-    this.style.lines.call(this, this.data.style.lines)
+    this.style.lines.call(this, (this.data.style || {}).lines)
     node.appendChild(this.textNode)
     return node
   },

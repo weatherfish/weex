@@ -319,24 +319,11 @@ do {\
     NSMutableAttributedString *attributedString = [[NSMutableAttributedString alloc] initWithString:string];
     
     // set textColor
-    if(_color){
+    if(_color) {
         [attributedString addAttribute:NSForegroundColorAttributeName value:_color range:NSMakeRange(0, string.length)];
     }
     
     // set font
-    if (!_fontFamily) {
-        NSString *regex = @".*[\\u4e00-\\u9faf].*";//Has Simplified Chinese char
-        NSPredicate *pred = [NSPredicate predicateWithFormat:@"SELF MATCHES %@",regex];
-        if ([pred evaluateWithObject:string]) {
-            if ([[UIDevice currentDevice].systemVersion floatValue] < 9.0) {
-                //“Heiti SC” font is "[UIFont systemFontOfSize:]" for Simplified Chinese before iOS 9.0.
-                _fontFamily = @"Heiti SC";
-            } else {
-                //“PingFang SC” font is "[UIFont systemFontOfSize:]" for Simplified Chinese from iOS 9.0.
-                _fontFamily = @"PingFang SC";
-            }
-        }
-    }
     UIFont *font = [WXUtility fontWithSize:_fontSize textWeight:_fontWeight textStyle:_fontStyle fontFamily:_fontFamily scaleFactor:self.weexInstance.pixelScaleFactor];
     if (font) {
         [attributedString addAttribute:NSFontAttributeName value:font range:NSMakeRange(0, string.length)];
