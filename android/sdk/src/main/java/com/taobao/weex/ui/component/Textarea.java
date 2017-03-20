@@ -205,8 +205,10 @@
 package com.taobao.weex.ui.component;
 
 import android.text.TextUtils;
+import android.view.Gravity;
+
 import com.taobao.weex.WXSDKInstance;
-import com.taobao.weex.common.WXDomPropConstant;
+import com.taobao.weex.common.Constants;
 import com.taobao.weex.dom.TextAreaEditTextDomObject;
 import com.taobao.weex.dom.WXDomObject;
 import com.taobao.weex.ui.view.WXEditText;
@@ -223,7 +225,7 @@ public class Textarea extends AbstractEditComponent {
   @Override
   protected void appleStyleAfterCreated(WXEditText editText) {
     super.appleStyleAfterCreated(editText);
-    String rowsStr = (String) mDomObj.style.get(WXDomPropConstant.WX_ATTR_TEXTAREA_ROWS);
+    String rowsStr = (String) getDomObject().getStyles().get(Constants.Name.ROWS);
 
     int rows = TextAreaEditTextDomObject.DEFAULT_ROWS;
     try{
@@ -240,9 +242,14 @@ public class Textarea extends AbstractEditComponent {
   }
 
   @Override
+  protected int getVerticalGravity() {
+    return Gravity.TOP;
+  }
+
+  @Override
   protected boolean setProperty(String key, Object param) {
     switch (key) {
-      case WXDomPropConstant.WX_ATTR_TEXTAREA_ROWS:
+      case Constants.Name.ROWS:
         Integer rows = WXUtils.getInteger(param,null);
         if (rows != null)
           setRows(rows);
@@ -251,7 +258,7 @@ public class Textarea extends AbstractEditComponent {
     return super.setProperty(key, param);
   }
 
-  @WXComponentProp(name = WXDomPropConstant.WX_ATTR_TEXTAREA_ROWS)
+  @WXComponentProp(name = Constants.Name.ROWS)
   public void setRows(int rows){
     WXEditText text = getHostView();
     if(text == null||rows <=0 ){

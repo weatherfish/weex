@@ -212,6 +212,7 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
+import com.taobao.weex.common.WXThread;
 import com.taobao.weex.ui.view.refresh.circlebar.CircleProgressBar;
 
 public class WXRefreshView extends FrameLayout {
@@ -242,6 +243,17 @@ public class WXRefreshView extends FrameLayout {
     linearLayout.setOrientation(LinearLayout.VERTICAL);
     linearLayout.setGravity(Gravity.CENTER);
     addView(linearLayout,lp);
+  }
+
+  public void setContentGravity(int gravity) {
+    if (linearLayout != null) {
+      linearLayout.setGravity(gravity);
+    }
+  }
+
+  @Override
+  public boolean post(Runnable action) {
+    return super.post(WXThread.secure(action));
   }
 
   /**

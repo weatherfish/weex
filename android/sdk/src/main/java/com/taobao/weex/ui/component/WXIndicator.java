@@ -205,14 +205,18 @@
 package com.taobao.weex.ui.component;
 
 import android.content.Context;
+import android.support.annotation.NonNull;
 import android.text.TextUtils;
 import android.view.View;
+import android.widget.FrameLayout;
 
 import com.taobao.weex.WXEnvironment;
 import com.taobao.weex.WXSDKInstance;
-import com.taobao.weex.common.WXDomPropConstant;
+import com.taobao.weex.annotation.Component;
+import com.taobao.weex.common.Constants;
 import com.taobao.weex.common.WXRuntimeException;
 import com.taobao.weex.dom.WXDomObject;
+import com.taobao.weex.dom.WXStyle;
 import com.taobao.weex.ui.view.WXCircleIndicator;
 import com.taobao.weex.utils.WXResourceUtils;
 import com.taobao.weex.utils.WXUtils;
@@ -225,6 +229,7 @@ import java.util.Map;
  *
  * Slider indicator
  */
+@Component(lazyload = false)
 public class WXIndicator extends WXComponent<WXCircleIndicator> {
 
   @Deprecated
@@ -237,9 +242,16 @@ public class WXIndicator extends WXComponent<WXCircleIndicator> {
   }
 
   @Override
-  protected WXCircleIndicator initComponentHostView(Context context) {
+  protected void setHostLayoutParams(WXCircleIndicator host, int width, int height, int left, int right, int top, int bottom) {
+      FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, height);
+      params.setMargins(left, top, right, bottom);
+      host.setLayoutParams(params);
+  }
+
+  @Override
+  protected WXCircleIndicator initComponentHostView(@NonNull Context context) {
     WXCircleIndicator view = new WXCircleIndicator(context);
-    if (mParent instanceof WXSlider) {
+    if (getParent() instanceof WXSlider) {
       return view;
     } else {
       if (WXEnvironment.isApkDebugable()) {
@@ -252,25 +264,25 @@ public class WXIndicator extends WXComponent<WXCircleIndicator> {
   @Override
   protected void onHostViewInitialized(WXCircleIndicator host) {
     super.onHostViewInitialized(host);
-    if (mParent instanceof WXSlider) {
-      ((WXSlider) mParent).addIndicator(this);
+    if (getParent() instanceof WXSlider) {
+      ((WXSlider) getParent()).addIndicator(this);
     }
   }
 
   @Override
   protected boolean setProperty(String key, Object param) {
     switch (key) {
-      case WXDomPropConstant.WX_ATTR_ITEM_COLOR:
+      case Constants.Name.ITEM_COLOR:
         String item_color = WXUtils.getString(param,null);
         if (item_color != null)
           setItemColor(item_color);
         return true;
-      case WXDomPropConstant.WX_ATTR_ITEM_SELECTED_COLOR:
+      case Constants.Name.ITEM_SELECTED_COLOR:
         String selected_color = WXUtils.getString(param,null);
         if (selected_color != null)
           setItemSelectedColor(selected_color);
         return true;
-      case WXDomPropConstant.WX_ATTR_ITEM_SIZE:
+      case Constants.Name.ITEM_SIZE:
         Integer item_size = WXUtils.getInteger(param,null);
         if (item_size != null)
           setItemSize(item_size);
@@ -280,7 +292,7 @@ public class WXIndicator extends WXComponent<WXCircleIndicator> {
   }
 
 
-  @WXComponentProp(name = WXDomPropConstant.WX_ATTR_ITEM_COLOR)
+  @WXComponentProp(name = Constants.Name.ITEM_COLOR)
   public void setItemColor(String itemColor) {
     if (!TextUtils.isEmpty(itemColor)) {
       int colorInt = WXResourceUtils.getColor(itemColor);
@@ -292,7 +304,7 @@ public class WXIndicator extends WXComponent<WXCircleIndicator> {
     }
   }
 
-  @WXComponentProp(name = WXDomPropConstant.WX_ATTR_ITEM_SELECTED_COLOR)
+  @WXComponentProp(name = Constants.Name.ITEM_SELECTED_COLOR)
   public void setItemSelectedColor(String itemSelectedColor) {
     if (!TextUtils.isEmpty(itemSelectedColor)) {
       int colorInt = WXResourceUtils.getColor(itemSelectedColor);
@@ -304,24 +316,24 @@ public class WXIndicator extends WXComponent<WXCircleIndicator> {
     }
   }
 
-  @WXComponentProp(name = WXDomPropConstant.WX_ATTR_ITEM_SIZE)
+  @WXComponentProp(name = Constants.Name.ITEM_SIZE)
   public void setItemSize(int itemSize) {
     if (itemSize < 0) {
       return;
     }
-    getHostView().setRadius(WXViewUtils.getRealPxByWidth(itemSize) / 2.0f);
+    getHostView().setRadius(WXViewUtils.getRealPxByWidth(itemSize,getInstance().getViewPortWidth()) / 2.0f);
     getHostView().forceLayout();
     getHostView().requestLayout();
   }
 
   public void setShowIndicators(boolean show) {
-    if (mHost == null) {
+    if (getHostView() == null) {
       return;
     }
     if (show) {
-      mHost.setVisibility(View.VISIBLE);
+      getHostView().setVisibility(View.VISIBLE);
     } else {
-      mHost.setVisibility(View.GONE);
+      getHostView().setVisibility(View.GONE);
     }
   }
 
@@ -332,9 +344,12 @@ public class WXIndicator extends WXComponent<WXCircleIndicator> {
 
     @Override
     protected Map<String, String> getDefaultStyle() {
+      WXStyle pendingStyles = getStyles();
       Map<String,String> map = new HashMap<>();
-      map.put("left","0");
-      map.put("top","0");
+      if(!pendingStyles.containsKey(Constants.Name.RIGHT))
+        map.put(Constants.Name.LEFT,"0");
+      if(!pendingStyles.containsKey(Constants.Name.BOTTOM))
+        map.put(Constants.Name.TOP,"0");
       return map;
     }
   }

@@ -208,11 +208,15 @@ import android.app.Application;
 import android.content.pm.ApplicationInfo;
 import android.test.mock.MockApplication;
 import com.taobao.weex.adapter.IWXHttpAdapter;
+import com.taobao.weex.bridge.WXBridgeManagerTest;
 import com.taobao.weex.common.TestModule;
 import com.taobao.weex.common.TestModuleFactory;
 import com.taobao.weex.dom.TestDomObject;
 import com.taobao.weex.http.WXStreamModule;
 import com.taobao.weex.ui.component.TestComponent;
+import com.taobao.weex.ui.component.WXComponent;
+
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -220,6 +224,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.annotation.Config;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -230,12 +235,18 @@ import static org.junit.Assert.*;
  * Created by sospartan on 7/20/16.
  */
 @RunWith(RobolectricTestRunner.class)
+@Config(manifest = Config.NONE)
 @PrepareForTest({})
 public class WXSDKEngineTest {
 
   @Before
   public void setUp() throws Exception {
 
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    WXBridgeManagerTest.getLooper().idle();
   }
 
   @Test
@@ -252,11 +263,11 @@ public class WXSDKEngineTest {
 
   @Test
   public void testRegisterComponent() throws Exception {
-    assertFalse(WXSDKEngine.registerComponent(null,null,true));
+    assertFalse(WXSDKEngine.registerComponent(null,(Class<? extends WXComponent>) null,true));
     assertTrue(WXSDKEngine.registerComponent("test", TestComponent.class,true));
     assertTrue(WXSDKEngine.registerComponent("test1",TestComponent.class));
     assertTrue(WXSDKEngine.registerComponent(TestComponent.class,false,"testA","testB","testC"));
-    Map<String,String> compInfo = new HashMap<>();
+    Map<String,Object> compInfo = new HashMap<>();
     assertFalse(WXSDKEngine.registerComponent(compInfo,TestComponent.class));
   }
 

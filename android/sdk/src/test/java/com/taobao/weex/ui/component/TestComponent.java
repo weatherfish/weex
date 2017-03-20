@@ -208,15 +208,18 @@ import android.view.View;
 import com.taobao.weex.WXSDKInstance;
 import com.taobao.weex.dom.WXDomObject;
 
+import java.lang.reflect.InvocationTargetException;
+
 /**
  * Created by sospartan on 7/27/16.
  */
-public class TestComponent extends WXComponent<View> {
+public class TestComponent extends WXDiv{
   public TestComponent(WXSDKInstance instance, WXDomObject dom, WXVContainer parent, String instanceId, boolean isLazy) {
     super(instance, dom, parent, instanceId, isLazy);
   }
 
-  public TestComponent(WXSDKInstance instance, WXDomObject dom, WXVContainer parent, boolean isLazy) {
-    super(instance, dom, parent, isLazy);
+  public TestComponent(WXSDKInstance instance, WXDomObject dom, WXVContainer parent) {
+    super(instance, dom, parent);
   }
+
 }

@@ -204,21 +204,29 @@
  */
 package com.taobao.weex;
 
+import com.taobao.weex.adapter.IDrawableLoader;
 import com.taobao.weex.adapter.IWXDebugAdapter;
 import com.taobao.weex.adapter.IWXHttpAdapter;
 import com.taobao.weex.adapter.IWXImgLoaderAdapter;
+import com.taobao.weex.adapter.IWXJSExceptionAdapter;
 import com.taobao.weex.adapter.IWXUserTrackAdapter;
+import com.taobao.weex.adapter.URIAdapter;
 import com.taobao.weex.appfram.storage.IWXStorageAdapter;
+import com.taobao.weex.appfram.websocket.IWebSocketAdapterFactory;
 
 /**
  * Created by sospartan on 5/31/16.
  */
 public class InitConfig {
   private IWXHttpAdapter httpAdapter;
+  private IDrawableLoader drawableLoader;
   private IWXImgLoaderAdapter imgAdapter;
   private IWXUserTrackAdapter utAdapter;
   private IWXDebugAdapter debugAdapter;
   private IWXStorageAdapter storageAdapter;
+  private URIAdapter mURIAdapter;
+  private IWebSocketAdapterFactory webSocketAdapterFactory;
+  private IWXJSExceptionAdapter mJSExceptionAdapter;
   private String framework;
 
   public IWXHttpAdapter getHttpAdapter() {
@@ -227,6 +235,10 @@ public class InitConfig {
 
   public IWXImgLoaderAdapter getImgAdapter() {
     return imgAdapter;
+  }
+
+  public IDrawableLoader getDrawableLoader() {
+    return drawableLoader;
   }
 
   public IWXUserTrackAdapter getUtAdapter() {
@@ -244,7 +256,17 @@ public class InitConfig {
     return storageAdapter;
   }
 
+  public URIAdapter getURIAdapter() {
+    return mURIAdapter;
+  }
 
+  public IWebSocketAdapterFactory getWebSocketAdapterFactory() {
+    return webSocketAdapterFactory;
+  }
+
+  public IWXJSExceptionAdapter getJSExceptionAdapter() {
+    return mJSExceptionAdapter;
+  }
 
   private InitConfig() {
   }
@@ -252,10 +274,14 @@ public class InitConfig {
   public static class Builder{
     IWXHttpAdapter httpAdapter;
     IWXImgLoaderAdapter imgAdapter;
+    IDrawableLoader drawableLoader;
     IWXUserTrackAdapter utAdapter;
     IWXDebugAdapter debugAdapter;
     IWXStorageAdapter storageAdapter;
+    URIAdapter mURIAdapter;
+    IWXJSExceptionAdapter mJSExceptionAdapter;
     String framework;
+    IWebSocketAdapterFactory webSocketAdapterFactory;
     public Builder(){
 
     }
@@ -267,6 +293,11 @@ public class InitConfig {
 
     public Builder setImgAdapter(IWXImgLoaderAdapter imgAdapter) {
       this.imgAdapter = imgAdapter;
+      return this;
+    }
+
+    public Builder setDrawableLoader(IDrawableLoader drawableLoader){
+      this.drawableLoader=drawableLoader;
       return this;
     }
 
@@ -285,8 +316,23 @@ public class InitConfig {
       return this;
     }
 
+    public Builder setURIAdapter(URIAdapter URIAdapter) {
+      mURIAdapter = URIAdapter;
+      return this;
+    }
+
+    public Builder setJSExceptionAdapter(IWXJSExceptionAdapter JSExceptionAdapter) {
+      mJSExceptionAdapter = JSExceptionAdapter;
+      return this;
+    }
+
     public Builder setFramework(String framework){
       this.framework=framework;
+      return this;
+    }
+
+    public Builder setWebSocketAdapterFactory(IWebSocketAdapterFactory factory) {
+      this.webSocketAdapterFactory = factory;
       return this;
     }
 
@@ -294,10 +340,14 @@ public class InitConfig {
       InitConfig config =  new InitConfig();
       config.httpAdapter = this.httpAdapter;
       config.imgAdapter = this.imgAdapter;
+      config.drawableLoader = this.drawableLoader;
       config.utAdapter = this.utAdapter;
       config.debugAdapter=this.debugAdapter;
       config.storageAdapter = this.storageAdapter;
       config.framework=this.framework;
+      config.mURIAdapter = this.mURIAdapter;
+      config.webSocketAdapterFactory = this.webSocketAdapterFactory;
+      config.mJSExceptionAdapter=this.mJSExceptionAdapter;
       return config;
     }
   }

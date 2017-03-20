@@ -212,6 +212,7 @@ import android.content.pm.PackageManager;
 import android.os.Environment;
 import android.telephony.TelephonyManager;
 
+import com.taobao.weappplus_sdk.BuildConfig;
 import com.taobao.weex.common.WXConfig;
 import com.taobao.weex.utils.LogLevel;
 import com.taobao.weex.utils.WXLogUtils;
@@ -226,15 +227,17 @@ public class WXEnvironment {
   public static final String OS = "android";
   public static final String SYS_VERSION = android.os.Build.VERSION.RELEASE;
   public static final String SYS_MODEL = android.os.Build.MODEL;
+  public static final String ENVIRONMENT = "environment";
   /*********************
    * Global config
    ***************************/
 
-  public static String JS_LIB_SDK_VERSION = "v0.14.7";
+  public static String JS_LIB_SDK_VERSION = BuildConfig.buildJavascriptFrameworkVersion;
 
-  public static String WXSDK_VERSION = "0.6.2.2";
+  public static String WXSDK_VERSION = BuildConfig.buildVersion;
   public static Application sApplication;
   public static final String DEV_Id = getDevId();
+  @Deprecated
   public static int sDefaultWidth = 750;
   public volatile static boolean JsFrameworkInit = false;
 
@@ -246,6 +249,7 @@ public class WXEnvironment {
    */
   public static boolean sDebugMode = false;
   public static String sDebugWsUrl = "";
+  public static boolean sDebugServerConnectable = true;
   public static boolean sRemoteDebugMode = false;
   public static String sRemoteDebugProxyUrl = "";
   public static long sJSLibInitTime = 0;
@@ -256,9 +260,9 @@ public class WXEnvironment {
   /** from init to sdk-ready **/
   public static long sSDKInitTime =0;
 
-  public static LogLevel sLogLevel= LogLevel.DEBUG;
+  public static LogLevel sLogLevel = LogLevel.DEBUG;
   private static boolean isApkDebug = true;
-  private static boolean isPerf = false;
+  public static boolean isPerf = false;
 
   public static boolean sShow3DLayer=true;
 
@@ -283,6 +287,12 @@ public class WXEnvironment {
     configs.put(WXConfig.sysModel, SYS_MODEL);
     configs.put(WXConfig.weexVersion, String.valueOf(WXSDK_VERSION));
     configs.put(WXConfig.logLevel,sLogLevel.getName());
+    try {
+      options.put(WXConfig.scale, Float.toString(sApplication.getResources().getDisplayMetrics().density));
+    }catch (NullPointerException e){
+      //There is little chance of NullPointerException as sApplication may be null.
+      WXLogUtils.e("WXEnvironment scale Exception: ", e);
+    }
     configs.putAll(options);
     if(configs!=null&&configs.get(WXConfig.appName)==null && sApplication!=null){
        configs.put(WXConfig.appName, sApplication.getPackageName());
@@ -307,20 +317,40 @@ public class WXEnvironment {
     return versionName;
   }
 
+  public static Map<String, String> getCustomOptions() {
+    return options;
+  }
+
   public static void addCustomOptions(String key, String value) {
     options.put(key, value);
   }
 
+  @Deprecated
+  /**
+   * Use {@link #isHardwareSupport()} if you want to see whether current hardware support Weex.
+   */
   public static boolean isSupport() {
+    boolean isInitialized = WXSDKEngine.isInitialized();
+    if(WXEnvironment.isApkDebugable()){
+      WXLogUtils.d("WXSDKEngine.isInitialized():" + isInitialized);
+    }
+    return isHardwareSupport() && isInitialized;
+  }
+
+  /**
+   * Tell whether Weex can run on current hardware.
+   * @return true if weex can run on current hardware, otherwise false.
+   */
+  public static boolean isHardwareSupport() {
     boolean excludeX86 = "true".equals(options.get(SETTING_EXCLUDE_X86SUPPORT));
-    boolean isX86AndExcluded = WXSoInstallMgrSdk.isX86()&&excludeX86;
-    boolean isCPUSupport = WXSoInstallMgrSdk.isCPUSupport()&&!isX86AndExcluded;
+    boolean isX86AndExcluded = WXSoInstallMgrSdk.isX86() && excludeX86;
+    boolean isCPUSupport = WXSoInstallMgrSdk.isCPUSupport() && !isX86AndExcluded;
     if (WXEnvironment.isApkDebugable()) {
       WXLogUtils.d("WXEnvironment.sSupport:" + isCPUSupport
-                   + " WXSDKEngine.isInitialized():" + WXSDKEngine.isInitialized()
+                   + "isX86AndExclueded: "+ isX86AndExcluded
                    + " !WXUtils.isTabletDevice():" + !WXUtils.isTabletDevice());
     }
-    return isCPUSupport && WXSDKEngine.isInitialized() && !WXUtils.isTabletDevice();
+    return isCPUSupport && !WXUtils.isTabletDevice();
   }
 
   public static boolean isApkDebugable() {

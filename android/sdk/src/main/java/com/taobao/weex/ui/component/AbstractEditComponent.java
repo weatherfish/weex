@@ -204,7 +204,9 @@
  */
 package com.taobao.weex.ui.component;
 
+import android.app.Activity;
 import android.content.Context;
+import android.support.annotation.NonNull;
 import android.text.Editable;
 import android.text.InputFilter;
 import android.text.InputType;
@@ -213,17 +215,20 @@ import android.text.TextWatcher;
 import android.text.method.PasswordTransformationMethod;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.TextView;
 
 import com.taobao.weex.WXSDKInstance;
 import com.taobao.weex.WXSDKManager;
-import com.taobao.weex.common.WXDomPropConstant;
+import com.taobao.weex.annotation.JSMethod;
+import com.taobao.weex.common.Constants;
 import com.taobao.weex.dom.WXDomObject;
 import com.taobao.weex.dom.WXStyle;
-import com.taobao.weex.dom.WXTextDomObject;
+import com.taobao.weex.ui.component.helper.WXTimeInputHelper;
 import com.taobao.weex.ui.view.WXEditText;
 import com.taobao.weex.utils.WXResourceUtils;
 import com.taobao.weex.utils.WXUtils;
@@ -236,20 +241,66 @@ import java.util.Map;
  */
 public abstract class AbstractEditComponent extends WXComponent<WXEditText> {
 
-  private final InputMethodManager mInputMethodManager = (InputMethodManager) mContext.getSystemService(Context.INPUT_METHOD_SERVICE);
+  private final InputMethodManager mInputMethodManager;
   private String mBeforeText = "";
   private boolean mAutoFocus;
   private String mType = "text";
+  private String mMax = null;
+  private String mMin = null;
+  private String mLastValue = "";
 
   public AbstractEditComponent(WXSDKInstance instance, WXDomObject dom, WXVContainer parent, boolean isLazy) {
     super(instance, dom, parent, isLazy);
+    mInputMethodManager = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
   }
 
   @Override
-  protected WXEditText initComponentHostView(Context context) {
-    WXEditText inputView = new WXEditText(context);
+  protected WXEditText initComponentHostView(@NonNull Context context) {
+    final WXEditText inputView = new WXEditText(context);
     appleStyleAfterCreated(inputView);
     return inputView;
+  }
+
+  @Override
+  protected void onHostViewInitialized(WXEditText host) {
+    super.onHostViewInitialized(host);
+    addFocusChangeListener(new OnFocusChangeListener() {
+      @Override
+      public void onFocusChange(boolean hasFocus) {
+        if (!hasFocus) {
+          decideSoftKeyboard();
+        }
+        setPseudoClassStatus(Constants.PESUDO.FOCUS,hasFocus);
+      }
+    });
+  }
+
+  private void applyOnClickListener() {
+    addClickListener(new OnClickListener() {
+      @Override
+      public void onHostViewClick() {
+        switch (mType) {
+          case Constants.Value.DATE:
+            hideSoftKeyboard();
+            if (getParent() != null) {
+              getParent().interceptFocus();
+            }
+            WXTimeInputHelper.pickDate(mMax, mMin, AbstractEditComponent.this);
+            break;
+          case Constants.Value.TIME:
+            hideSoftKeyboard();
+            if (getParent() != null) {
+              getParent().interceptFocus();
+            }
+            WXTimeInputHelper.pickTime(AbstractEditComponent.this);
+            break;
+        }
+      }
+    });
+  }
+
+  protected int getVerticalGravity(){
+    return Gravity.CENTER_VERTICAL;
   }
 
   /**
@@ -258,47 +309,69 @@ public abstract class AbstractEditComponent extends WXComponent<WXEditText> {
    * @param editText
    */
   protected void appleStyleAfterCreated(WXEditText editText) {
-    String alignStr = (String) mDomObj.style.get(WXDomPropConstant.WX_TEXTALIGN);
+    String alignStr = (String) getDomObject().getStyles().get(Constants.Name.TEXT_ALIGN);
     int textAlign = getTextAlign(alignStr);
     if (textAlign <= 0) {
-      textAlign = Gravity.LEFT;
+      textAlign = Gravity.START;
     }
-    editText.setGravity(textAlign | Gravity.CENTER_VERTICAL);
+    editText.setGravity(textAlign | getVerticalGravity());
     int colorInt = WXResourceUtils.getColor("#999999");
     if (colorInt != Integer.MIN_VALUE) {
       editText.setHintTextColor(colorInt);
     }
 
-    editText.setTextSize(TypedValue.COMPLEX_UNIT_PX, WXStyle.getFontSize(mDomObj.style));
-    editText.setText((String) mDomObj.attr.get("value"));
+    editText.setTextSize(TypedValue.COMPLEX_UNIT_PX, WXStyle.getFontSize(getDomObject().getStyles(),getInstance().getViewPortWidth()));
+    editText.setText(getDomObject().getAttrs().optString(Constants.Name.VALUE));
   }
 
 
   @Override
-  public void addEvent(String type) {
+  public void addEvent(final String type) {
     super.addEvent(type);
-    if (mHost == null || TextUtils.isEmpty(type)) {
+    if (getHostView() == null || TextUtils.isEmpty(type)) {
       return;
     }
-    final TextView text = (WXEditText) mHost;
+    final TextView text = getHostView();
 
-    if (type.equals(WXEventType.INPUT_CHANGE)) {
-      text.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-        CharSequence mLastValue = text.getText();
-
+    if (type.equals(Constants.Event.CHANGE)) {
+      addFocusChangeListener(new OnFocusChangeListener() {
         @Override
-        public void onFocusChange(View v, boolean hasFocus) {
-          CharSequence newValue = text.getText();
-          newValue = newValue == null ? "" : newValue;
-          if (!hasFocus && !newValue.equals(mLastValue)) {
-            mLastValue = newValue;
-
-            String event = mDomObj.event.contains(WXEventType.INPUT_CHANGE) ? WXEventType.INPUT_CHANGE : null;
-            fireEvent(event, newValue.toString());
+        public void onFocusChange(boolean hasFocus) {
+          if (hasFocus) {
+            mLastValue = text.getText().toString();
+          } else {
+            CharSequence newValue = text.getText();
+            newValue = newValue == null ? "" : newValue;
+            if (!newValue.toString().equals(mLastValue)) {
+              String event = getDomObject().getEvents().contains(Constants.Event.CHANGE) ? Constants.Event.CHANGE : null;
+              fireEvent(event, newValue.toString());
+              mLastValue = text.getText().toString();
+            }
           }
         }
       });
-    } else if (type.equals(WXEventType.INPUT)) {
+
+      getHostView().setOnEditorActionListener(new TextView.OnEditorActionListener() {
+        @Override
+        public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+          if (actionId == EditorInfo.IME_ACTION_DONE) {
+            CharSequence newValue = text.getText();
+            newValue = newValue == null ? "" : newValue;
+            if (!newValue.toString().equals(mLastValue)) {
+              String eventName = getDomObject().getEvents().contains(Constants.Event.CHANGE) ? Constants.Event.CHANGE : null;
+              fireEvent(eventName, newValue.toString());
+              mLastValue = text.getText().toString();
+            }
+            if (getParent() != null) {
+              getParent().interceptFocus();
+            }
+            hideSoftKeyboard();
+            return true;
+          }
+          return false;
+        }
+      });
+    } else if (type.equals(Constants.Event.INPUT)) {
       text.addTextChangedListener(new TextWatcher() {
         @Override
         public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -311,7 +384,7 @@ public abstract class AbstractEditComponent extends WXComponent<WXEditText> {
             return;
           }
 
-          String event = mDomObj.event.contains(WXEventType.INPUT) ? WXEventType.INPUT : null;
+          String event = getDomObject().getEvents().contains(Constants.Event.INPUT) ? Constants.Event.INPUT : null;
           fireEvent(event, s.toString());
 
           mBeforeText = s.toString();
@@ -336,155 +409,178 @@ public abstract class AbstractEditComponent extends WXComponent<WXEditText> {
       attrsChanges.put("value", value);
       domChanges.put("attrs", attrsChanges);
 
-      WXSDKManager.getInstance().fireEvent(mInstanceId, mDomObj.ref, event, params, domChanges);
+      WXSDKManager.getInstance().fireEvent(getInstanceId(), getDomObject().getRef(), event, params, domChanges);
     }
+  }
+
+  public void performOnChange(String value) {
+    String event = getDomObject().getEvents().contains(Constants.Event.CHANGE) ? Constants.Event.CHANGE : null;
+    fireEvent(event, value);
   }
 
   @Override
   protected boolean setProperty(String key, Object param) {
     switch (key) {
-      case WXDomPropConstant.WX_ATTR_INPUT_PLACEHOLDER:
+      case Constants.Name.PLACEHOLDER:
         String placeholder = WXUtils.getString(param,null);
         if (placeholder != null)
           setPlaceholder(placeholder);
         return true;
-      case WXDomPropConstant.WX_INPUT_PLACEHOLDER_COLOR:
+      case Constants.Name.PLACEHOLDER_COLOR:
         String placeholder_color = WXUtils.getString(param,null);
         if (placeholder_color != null)
           setPlaceholderColor(placeholder_color);
         return true;
-      case WXDomPropConstant.WX_ATTR_INPUT_TYPE:
+      case Constants.Name.TYPE:
         String input_type = WXUtils.getString(param,null);
         if (input_type != null)
           setType(input_type);
         return true;
-      case WXDomPropConstant.WX_ATTR_INPUT_AUTOFOCUS:
+      case Constants.Name.AUTOFOCUS:
         Boolean result = WXUtils.getBoolean(param, null);
         if (result != null)
           setAutofocus(result);
         return true;
-      case WXDomPropConstant.WX_COLOR:
+      case Constants.Name.COLOR:
         String color = WXUtils.getString(param,null);
         if (color != null)
           setColor(color);
         return true;
-      case WXDomPropConstant.WX_FONTSIZE:
+      case Constants.Name.FONT_SIZE:
         String fontsize = WXUtils.getString(param,null);
         if (fontsize != null)
           setFontSize(fontsize);
         return true;
-      case WXDomPropConstant.WX_TEXTALIGN:
+      case Constants.Name.TEXT_ALIGN:
         String text_align = WXUtils.getString(param,null);
         if (text_align != null)
           setTextAlign(text_align);
         return true;
-      case WXDomPropConstant.WX_ATTR_INPUT_SINGLELINE:
+      case Constants.Name.SINGLELINE:
         Boolean singLineResult = WXUtils.getBoolean(param, null);
         if (singLineResult != null)
           setSingleLine(singLineResult);
         return true;
-      case WXDomPropConstant.WX_ATTR_INPUT_LINES:
+      case Constants.Name.LINES:
         Integer lines = WXUtils.getInteger(param, null);
         if (lines != null)
           setLines(lines);
         return true;
-      case WXDomPropConstant.WX_ATTR_INPUT_MAXLENGTH:
+      case Constants.Name.MAX_LENGTH:
         Integer maxlength = WXUtils.getInteger(param, null);
         if (maxlength != null)
           setMaxLength(maxlength);
+        return true;
+      case Constants.Name.MAXLENGTH:
+        Integer maxLength = WXUtils.getInteger(param, null);
+        if (maxLength != null)
+          setMaxLength(maxLength);
+          return true;
+      case Constants.Name.MAX:
+        setMax(String.valueOf(param));
+        return true;
+      case Constants.Name.MIN:
+        setMin(String.valueOf(param));
         return true;
     }
     return super.setProperty(key, param);
   }
 
-  @WXComponentProp(name = WXDomPropConstant.WX_ATTR_INPUT_PLACEHOLDER)
+  @WXComponentProp(name = Constants.Name.PLACEHOLDER)
   public void setPlaceholder(String placeholder) {
-    if (placeholder == null || mHost == null) {
+    if (placeholder == null || getHostView() == null) {
       return;
     }
-    ((WXEditText) mHost).setHint(placeholder);
+    ((WXEditText) getHostView()).setHint(placeholder);
   }
 
-  @WXComponentProp(name = WXDomPropConstant.WX_INPUT_PLACEHOLDER_COLOR)
+  @WXComponentProp(name = Constants.Name.PLACEHOLDER_COLOR)
   public void setPlaceholderColor(String color) {
-    if (mHost != null && !TextUtils.isEmpty(color)) {
+    if (getHostView() != null && !TextUtils.isEmpty(color)) {
       int colorInt = WXResourceUtils.getColor(color);
       if (colorInt != Integer.MIN_VALUE) {
-        ((WXEditText) mHost).setHintTextColor(colorInt);
+        ((WXEditText) getHostView()).setHintTextColor(colorInt);
       }
     }
   }
 
-  @WXComponentProp(name = WXDomPropConstant.WX_ATTR_INPUT_TYPE)
+  @WXComponentProp(name = Constants.Name.TYPE)
   public void setType(String type) {
-    if (type == null || mHost == null) {
+    if (type == null || getHostView() == null) {
       return;
     }
     mType = type;
-    ((EditText) mHost).setRawInputType(getInputType(mType));
+    ((EditText) getHostView()).setRawInputType(getInputType(mType));
+    switch (mType) {
+      case Constants.Value.DATE:
+      case Constants.Value.TIME:
+        applyOnClickListener();
+        break;
+    }
   }
 
-  @WXComponentProp(name = WXDomPropConstant.WX_ATTR_INPUT_AUTOFOCUS)
+  @WXComponentProp(name = Constants.Name.AUTOFOCUS)
   public void setAutofocus(boolean autofocus) {
-    if (mHost == null) {
+    if (getHostView() == null) {
       return;
     }
     mAutoFocus = autofocus;
-    EditText inputView = (EditText) mHost;
+    EditText inputView = getHostView();
     if (mAutoFocus) {
       inputView.setFocusable(true);
       inputView.requestFocus();
       inputView.setFocusableInTouchMode(true);
-      inputView.postDelayed(new Runnable() {
-        @Override
-        public void run() {
-          showSoftKeyboard();
-        }
-      }, 16);
+      showSoftKeyboard();
     } else {
-      inputView.postDelayed(new Runnable() {
-        @Override
-        public void run() {
-          hideSoftKeyboard();
-        }
-      }, 16);
+      hideSoftKeyboard();
     }
   }
 
-  @WXComponentProp(name = WXDomPropConstant.WX_COLOR)
+  @WXComponentProp(name = Constants.Name.VALUE)
+  public void setValue(String value){
+    WXEditText view;
+    if((view = getHostView()) == null){
+      return;
+    }
+
+    view.setText(value);
+    view.setSelection(value == null?0:value.length());
+  }
+
+  @WXComponentProp(name = Constants.Name.COLOR)
   public void setColor(String color) {
-    if (mHost != null && !TextUtils.isEmpty(color)) {
+    if (getHostView() != null && !TextUtils.isEmpty(color)) {
       int colorInt = WXResourceUtils.getColor(color);
       if (colorInt != Integer.MIN_VALUE) {
-        ((WXEditText) mHost).setTextColor(colorInt);
+        getHostView().setTextColor(colorInt);
       }
     }
   }
 
-  @WXComponentProp(name = WXDomPropConstant.WX_FONTSIZE)
+  @WXComponentProp(name = Constants.Name.FONT_SIZE)
   public void setFontSize(String fontSize) {
-    if (mHost != null && fontSize != null && mDomObj.style != null) {
-      ((WXEditText) mHost).setTextSize(TypedValue.COMPLEX_UNIT_PX, WXStyle.getFontSize(mDomObj.style));
+    if (getHostView() != null && fontSize != null ) {
+      getHostView().setTextSize(TypedValue.COMPLEX_UNIT_PX, WXStyle.getFontSize(getDomObject().getStyles(),getInstance().getViewPortWidth()));
     }
   }
 
-  @WXComponentProp(name = WXDomPropConstant.WX_TEXTALIGN)
+  @WXComponentProp(name = Constants.Name.TEXT_ALIGN)
   public void setTextAlign(String textAlign) {
     int align = getTextAlign(textAlign);
     if (align > 0) {
-      ((EditText) mHost).setGravity(align | Gravity.CENTER_VERTICAL);
+      getHostView().setGravity(align | getVerticalGravity());
     }
   }
 
-  @WXComponentProp(name = WXDomPropConstant.WX_ATTR_INPUT_SINGLELINE)
+  @WXComponentProp(name = Constants.Name.SINGLELINE)
   public void setSingleLine(boolean singleLine) {
-    if (mHost == null) {
+    if (getHostView() == null) {
       return;
     }
-    ((WXEditText) mHost).setSingleLine(singleLine);
+    getHostView().setSingleLine(singleLine);
   }
 
-  @WXComponentProp(name = WXDomPropConstant.WX_ATTR_INPUT_LINES)
+  @WXComponentProp(name = Constants.Name.LINES)
   public void setLines(int lines) {
     if (getHostView() == null) {
       return;
@@ -492,7 +588,11 @@ public abstract class AbstractEditComponent extends WXComponent<WXEditText> {
     getHostView().setLines(lines);
   }
 
-  @WXComponentProp(name = WXDomPropConstant.WX_ATTR_INPUT_MAXLENGTH)
+  /**
+   * Compatible with both 'max-length' and 'maxlength'
+   * @param maxLength
+   */
+  @WXComponentProp(name = Constants.Name.MAX_LENGTH)
   public void setMaxLength(int maxLength) {
     if (getHostView() == null) {
       return;
@@ -500,37 +600,44 @@ public abstract class AbstractEditComponent extends WXComponent<WXEditText> {
     getHostView().setFilters(new InputFilter[]{new InputFilter.LengthFilter(maxLength)});
   }
 
-  @Override
-  public WXTextDomObject getDomObject() {
-    return (WXTextDomObject) super.getDomObject();
+  /**
+   * Compatible with both 'max-length' and 'maxlength'
+   * @param maxLength
+   */
+  @WXComponentProp(name = Constants.Name.MAXLENGTH)
+  @Deprecated
+  public void setMaxlength(int maxLength) {
+    setMaxLength(maxLength);
   }
 
   private int getInputType(String type) {
     int inputType;
     switch (type) {
-      case WXDomPropConstant.WX_ATTR_INPUT_TYPE_TEXT:
+      case Constants.Value.TEXT:
         inputType = InputType.TYPE_CLASS_TEXT;
         break;
-      case WXDomPropConstant.WX_ATTR_INPUT_TYPE_DATE:
-        inputType = InputType.TYPE_CLASS_DATETIME | InputType.TYPE_DATETIME_VARIATION_DATE;
+      case Constants.Value.DATE:
+        inputType = InputType.TYPE_NULL;
+        getHostView().setFocusable(false);
         break;
-      case WXDomPropConstant.WX_ATTR_INPUT_TYPE_DATETIME:
+      case Constants.Value.DATETIME:
         inputType = InputType.TYPE_CLASS_DATETIME;
         break;
-      case WXDomPropConstant.WX_ATTR_INPUT_TYPE_EMAIL:
+      case Constants.Value.EMAIL:
         inputType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS;
         break;
-      case WXDomPropConstant.WX_ATTR_INPUT_TYPE_PASSWORD:
+      case Constants.Value.PASSWORD:
         inputType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD;
         getHostView().setTransformationMethod(PasswordTransformationMethod.getInstance());
         break;
-      case WXDomPropConstant.WX_ATTR_INPUT_TYPE_TEL:
+      case Constants.Value.TEL:
         inputType = InputType.TYPE_CLASS_PHONE;
         break;
-      case WXDomPropConstant.WX_ATTR_INPUT_TYPE_TIME:
-        inputType = InputType.TYPE_CLASS_DATETIME | InputType.TYPE_DATETIME_VARIATION_TIME;
+      case Constants.Value.TIME:
+        inputType = InputType.TYPE_NULL;
+        getHostView().setFocusable(false);
         break;
-      case WXDomPropConstant.WX_ATTR_INPUT_TYPE_URL:
+      case Constants.Value.URL:
         inputType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI;
         break;
       default:
@@ -539,32 +646,108 @@ public abstract class AbstractEditComponent extends WXComponent<WXEditText> {
     return inputType;
   }
 
+  @WXComponentProp(name = Constants.Name.MAX)
+  public void setMax(String max) {
+    mMax = max;
+  }
+
+  @WXComponentProp(name = Constants.Name.MIN)
+  public void setMin(String min) {
+    mMin = min;
+  }
+
   private boolean showSoftKeyboard() {
-    if (mHost == null) {
+    if (getHostView() == null) {
       return false;
+    } else {
+      getHostView().postDelayed(new Runnable() {
+        @Override
+        public void run() {
+          mInputMethodManager.showSoftInput(getHostView(), InputMethodManager.SHOW_IMPLICIT);
+        }
+      }, 16);
     }
-    return mInputMethodManager.showSoftInput(mHost, InputMethodManager.SHOW_IMPLICIT);
+    return true;
   }
 
   private void hideSoftKeyboard() {
-    if (mHost != null) {
-      mInputMethodManager.hideSoftInputFromWindow(mHost.getWindowToken(), 0);
+    if (getHostView() != null) {
+      getHostView().postDelayed(new Runnable() {
+        @Override
+        public void run() {
+          mInputMethodManager.hideSoftInputFromWindow(getHostView().getWindowToken(), 0);
+        }
+      }, 16);
     }
   }
 
   private int getTextAlign(String textAlign) {
-    int align = Gravity.LEFT;
+    int align = Gravity.START;
     if (TextUtils.isEmpty(textAlign)) {
       return align;
     }
-    if (textAlign.equals(WXDomPropConstant.WX_TEXTALIGN_LEFT)) {
-      align = Gravity.LEFT;
-    } else if (textAlign.equals(WXDomPropConstant.WX_TEXTALIGN_CENTER)) {
+    if (textAlign.equals(Constants.Value.LEFT)) {
+      align = Gravity.START;
+    } else if (textAlign.equals(Constants.Value.CENTER)) {
       align = Gravity.CENTER;
-    } else if (textAlign.equals(WXDomPropConstant.WX_TEXTALIGN_RIGHT)) {
-      align = Gravity.RIGHT;
+    } else if (textAlign.equals(Constants.Value.RIGHT)) {
+      align = Gravity.END;
     }
     return align;
   }
 
+  @JSMethod
+  public void blur() {
+    WXEditText host = getHostView();
+    if (host != null && host.hasFocus()) {
+      if (getParent() != null) {
+        getParent().interceptFocus();
+      }
+      host.clearFocus();
+      hideSoftKeyboard();
+    }
+  }
+
+  @JSMethod
+  public void focus() {
+    WXEditText host = getHostView();
+    if (host != null && !host.hasFocus()) {
+      if (getParent() != null) {
+        getParent().ignoreFocus();
+      }
+      host.requestFocus();
+      host.setFocusable(true);
+      host.setFocusableInTouchMode(true);
+      showSoftKeyboard();
+    }
+  }
+
+  @Override
+  protected Object convertEmptyProperty(String propName, Object originalValue) {
+    switch (propName) {
+      case Constants.Name.FONT_SIZE:
+        return WXText.sDEFAULT_SIZE;
+      case Constants.Name.COLOR:
+        return "black";
+    }
+    return super.convertEmptyProperty(propName, originalValue);
+  }
+
+  private void decideSoftKeyboard() {
+    View hostView;
+    if ((hostView = getHostView()) != null) {
+      final Context context = getContext();
+      if (context != null && context instanceof Activity) {
+        hostView.postDelayed(new Runnable() {
+          @Override
+          public void run() {
+            View currentFocus = ((Activity) context).getCurrentFocus();
+            if (!(currentFocus instanceof EditText)) {
+              mInputMethodManager.hideSoftInputFromWindow(getHostView().getWindowToken(), 0);
+            }
+          }
+        }, 16);
+      }
+    }
+  }
 }

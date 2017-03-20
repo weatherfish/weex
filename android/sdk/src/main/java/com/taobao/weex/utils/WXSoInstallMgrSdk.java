@@ -208,6 +208,7 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.os.Build;
 
+import com.taobao.weex.WXEnvironment;
 import com.taobao.weex.adapter.IWXUserTrackAdapter;
 import com.taobao.weex.common.WXErrorCode;
 import com.taobao.weex.common.WXPerformance;
@@ -249,8 +250,8 @@ public class WXSoInstallMgrSdk {
   private final static String ARMEABI = "armeabi"; //default
   private final static String X86 = "x86";
   private final static String MIPS = "mips";
-  private final static int ARMEABI_Size = 3559244;
-  private final static int X86_Size = 4304032;
+  private final static int ARMEABI_Size = 3542844;
+  private final static int X86_Size = 4451068;
 
   static Context mContext = null;
 
@@ -283,8 +284,6 @@ public class WXSoInstallMgrSdk {
     }
 
     boolean InitSuc = false;
-
-    if (checkSoIsInValid(libName, ARMEABI_Size) ||checkSoIsInValid(libName, X86_Size)) {
 
       /**
        * Load library with {@link System#loadLibrary(String)}
@@ -332,7 +331,6 @@ public class WXSoInstallMgrSdk {
         InitSuc = false;
         e.printStackTrace();
       }
-    }
     return InitSuc;
   }
 
@@ -355,7 +353,13 @@ public class WXSoInstallMgrSdk {
     return abi;
   }
 
-  static boolean checkSoIsInValid(String libName, int size) {
+  /**
+   *
+   * @param libName lib name
+   * @param size  the right size of lib
+   * @return true for valid  ; false for InValid
+   */
+  static boolean checkSoIsValid(String libName, int size) {
     Context context = mContext;
     if (null == context) {
       return false;
@@ -555,9 +559,9 @@ public class WXSoInstallMgrSdk {
       WXPerformance p = new WXPerformance();
       p.errCode = errCode;
       p.errMsg = errMsg;
-      utAdapter.commit(null, null, WXConst.ENVIRONMENT, p, null);
+      utAdapter.commit(null, null, WXEnvironment.ENVIRONMENT, p, null);
     } else {
-      utAdapter.commit(null, null, WXConst.ENVIRONMENT, null, null);
+      utAdapter.commit(null, null, WXEnvironment.ENVIRONMENT, null, null);
 
     }
   }

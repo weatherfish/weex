@@ -27,14 +27,14 @@ import android.text.style.StrikethroughSpan;
 import android.text.style.UnderlineSpan;
 
 import com.taobao.weex.WXEnvironment;
-import com.taobao.weex.common.WXDomPropConstant;
+import com.taobao.weex.common.Constants;
 import com.taobao.weex.dom.flex.CSSConstants;
 import com.taobao.weex.dom.flex.CSSNode;
 import com.taobao.weex.dom.flex.FloatUtil;
 import com.taobao.weex.dom.flex.MeasureOutput;
-import com.taobao.weex.dom.flex.Spacing;
 import com.taobao.weex.ui.component.WXText;
 import com.taobao.weex.ui.component.WXTextDecoration;
+import com.taobao.weex.utils.WXDomUtils;
 import com.taobao.weex.utils.WXLogUtils;
 import com.taobao.weex.utils.WXResourceUtils;
 
@@ -57,17 +57,22 @@ public class WXTextDomObject extends WXDomObject {
    */
   private static class SetSpanOperation {
 
-    protected int start, end;
-    protected Object what;
+    protected final int start, end, flag;
+    protected final Object what;
 
     SetSpanOperation(int start, int end, Object what) {
+      this(start, end, what, Spanned.SPAN_INCLUSIVE_EXCLUSIVE);
+    }
+
+    SetSpanOperation(int start, int end, Object what, int flag) {
       this.start = start;
       this.end = end;
       this.what = what;
+      this.flag = flag;
     }
 
     public void execute(Spannable sb) {
-      sb.setSpan(what, start, end, Spannable.SPAN_INCLUSIVE_EXCLUSIVE);
+      sb.setSpan(what, start, end, flag);
     }
   }
 
@@ -75,18 +80,23 @@ public class WXTextDomObject extends WXDomObject {
    * Object for calculating text's width and height. This class is an anonymous class of
    * implementing {@link com.taobao.weex.dom.flex.CSSNode.MeasureFunction}
    */
-  private static final CSSNode.MeasureFunction TEXT_MEASURE_FUNCTION = new CSSNode.MeasureFunction() {
+  /** package **/ static final CSSNode.MeasureFunction TEXT_MEASURE_FUNCTION = new CSSNode.MeasureFunction() {
     @Override
-    public void measure(CSSNode node, float width, MeasureOutput measureOutput) {
+    public void measure(CSSNode node, float width, @NonNull MeasureOutput measureOutput) {
       WXTextDomObject textDomObject = (WXTextDomObject) node;
       if (CSSConstants.isUndefined(width)) {
         width = node.cssstyle.maxWidth;
       }
-      textDomObject.layout = textDomObject.createLayout(width, false, null);
-      textDomObject.hasBeenMeasured = true;
-      textDomObject.previousWidth = textDomObject.layout.getWidth();
-      measureOutput.height = textDomObject.layout.getHeight();
-      measureOutput.width = textDomObject.previousWidth;
+      if(textDomObject.getTextWidth(textDomObject.mTextPaint,width,false)>0) {
+        textDomObject.layout = textDomObject.createLayout(width, false, null);
+        textDomObject.hasBeenMeasured = true;
+        textDomObject.previousWidth = textDomObject.layout.getWidth();
+        measureOutput.height = textDomObject.layout.getHeight();
+        measureOutput.width = textDomObject.previousWidth;
+      }else{
+        measureOutput.height = 0;
+        measureOutput.width = 0;
+      }
     }
   };
 
@@ -129,6 +139,10 @@ public class WXTextDomObject extends WXDomObject {
     setMeasureFunction(TEXT_MEASURE_FUNCTION);
   }
 
+  public TextPaint getTextPaint() {
+    return mTextPaint;
+  }
+
   /**
    * Prepare the text {@link Spanned} for calculating text's size. This is done by setting
    * various text span to the text.
@@ -146,7 +160,8 @@ public class WXTextDomObject extends WXDomObject {
   @Override
   public void layoutAfter() {
     if (hasBeenMeasured) {
-      if (layout != null && !FloatUtil.floatsEqual(getTextContentWidth(), previousWidth)) {
+      if (layout != null &&
+          !FloatUtil.floatsEqual(WXDomUtils.getContentWidth(this), previousWidth)) {
         recalculateLayout();
       }
     } else {
@@ -172,7 +187,7 @@ public class WXTextDomObject extends WXDomObject {
   public void updateAttr(Map<String, Object> attrs) {
     swap();
     super.updateAttr(attrs);
-    if (attrs.containsKey(WXDomPropConstant.WX_ATTR_VALUE)) {
+    if (attrs.containsKey(Constants.Name.VALUE)) {
       mText = WXAttr.getValue(attrs);
     }
   }
@@ -189,19 +204,9 @@ public class WXTextDomObject extends WXDomObject {
     WXTextDomObject dom = null;
     try {
       dom = new WXTextDomObject();
-      if (this.cssstyle != null) {
-        dom.cssstyle.copy(this.cssstyle);
-      }
-      dom.ref = ref;
-      dom.type = type;
-      dom.style = style;
-      dom.attr = attr;
-      dom.event = event == null ? null : event.clone();
+      copyFields(dom);
       dom.hasBeenMeasured = hasBeenMeasured;
       dom.atomicReference = atomicReference;
-      if (this.csslayout != null) {
-        dom.csslayout.copy(this.csslayout);
-      }
     } catch (Exception e) {
       if (WXEnvironment.isApkDebugable()) {
         WXLogUtils.e("WXTextDomObject clone error: ", e);
@@ -214,38 +219,23 @@ public class WXTextDomObject extends WXDomObject {
   }
 
   /**
-   * Get the content width of the dom.
-   * @return the width of the dom that excludes left-padding and right-padding.
-   */
-  private float getTextContentWidth() {
-    float rawWidth = getLayoutWidth(), left, right;
-    Spacing padding = getPadding();
-    if (!CSSConstants.isUndefined((left = padding.get(Spacing.LEFT)))) {
-      rawWidth -= left;
-    }
-    if (!CSSConstants.isUndefined((right = padding.get(Spacing.RIGHT)))) {
-      rawWidth -= right;
-    }
-    return rawWidth;
-  }
-
-  /**
    * RecalculateLayout.
    */
   private void recalculateLayout() {
-    spanned = createSpanned(mText);
-    layout = createLayout(getTextContentWidth(), true, layout);
-    previousWidth = layout.getWidth();
+    float contentWidth = WXDomUtils.getContentWidth(this);
+    if (contentWidth > 0) {
+      spanned = createSpanned(mText);
+      layout = createLayout(contentWidth, true, layout);
+      previousWidth = layout.getWidth();
+    }
   }
 
   /**
    * Update style and text.
    */
   private void updateStyleAndText() {
-    updateStyleImp(style);
-    if (attr != null) {
-      mText = WXAttr.getValue(attr);
-    }
+    updateStyleImp(getStyles());
+    mText = WXAttr.getValue(getAttrs());
   }
 
   /**
@@ -254,34 +244,34 @@ public class WXTextDomObject extends WXDomObject {
    */
   private void updateStyleImp(Map<String, Object> style) {
     if (style != null) {
-      if (style.containsKey(WXDomPropConstant.WX_LINES)) {
+      if (style.containsKey(Constants.Name.LINES)) {
         int lines = WXStyle.getLines(style);
         if (lines > 0) {
           mNumberOfLines = lines;
         }
       }
-      if (style.containsKey(WXDomPropConstant.WX_FONTSIZE)) {
-        mFontSize = WXStyle.getFontSize(style);
+      if (style.containsKey(Constants.Name.FONT_SIZE)) {
+        mFontSize = WXStyle.getFontSize(style,getViewPortWidth());
       }
-      if (style.containsKey(WXDomPropConstant.WX_FONTWEIGHT)) {
+      if (style.containsKey(Constants.Name.FONT_WEIGHT)) {
         mFontWeight = WXStyle.getFontWeight(style);
       }
-      if (style.containsKey(WXDomPropConstant.WX_FONTSTYLE)) {
+      if (style.containsKey(Constants.Name.FONT_STYLE)) {
         mFontStyle = WXStyle.getFontStyle(style);
       }
-      if (style.containsKey(WXDomPropConstant.WX_COLOR)) {
+      if (style.containsKey(Constants.Name.COLOR)) {
         mColor = WXResourceUtils.getColor(WXStyle.getTextColor(style));
         mIsColorSet = mColor != Integer.MIN_VALUE;
       }
-      if (style.containsKey(WXDomPropConstant.WX_TEXTDECORATION)) {
+      if (style.containsKey(Constants.Name.TEXT_DECORATION)) {
         mTextDecoration = WXStyle.getTextDecoration(style);
       }
-      if (style.containsKey(WXDomPropConstant.WX_FONTFAMILY)) {
+      if (style.containsKey(Constants.Name.FONT_FAMILY)) {
         mFontFamily = WXStyle.getFontFamily(style);
       }
       mAlignment = WXStyle.getTextAlignment(style);
       textOverflow = WXStyle.getTextOverflow(style);
-      int lineHeight = WXStyle.getLineHeight(style);
+      int lineHeight = WXStyle.getLineHeight(style,getViewPortWidth());
       if (lineHeight != UNSET) {
         mLineHeight = lineHeight;
       }
@@ -303,7 +293,7 @@ public class WXTextDomObject extends WXDomObject {
     Layout layout;
     if (!FloatUtil.floatsEqual(previousWidth, textWidth) || previousLayout == null) {
       layout = new StaticLayout(spanned, mTextPaint, (int) Math.ceil(textWidth),
-                                Layout.Alignment.ALIGN_NORMAL, 1, 0, true);
+                                Layout.Alignment.ALIGN_NORMAL, 1, 0, false);
     } else {
       layout = previousLayout;
     }
@@ -317,7 +307,7 @@ public class WXTextDomObject extends WXDomObject {
                                         mTextPaint, layout.getWidth(), textOverflow);
         spanned = createSpanned(text);
         return new StaticLayout(spanned, mTextPaint, (int) Math.ceil(textWidth),
-                                Layout.Alignment.ALIGN_NORMAL, 1, 0, true);
+                                Layout.Alignment.ALIGN_NORMAL, 1, 0, false);
       }
     }
     return layout;
@@ -354,7 +344,7 @@ public class WXTextDomObject extends WXDomObject {
    * @return if forceToDesired is false, it will be the minimum value of the width of text and
    * outerWidth in case of outerWidth is defined, in other case, it will be outer width.
    */
-  private float getTextWidth(TextPaint textPaint,float outerWidth, boolean forceToDesired) {
+  /** package **/ float getTextWidth(TextPaint textPaint,float outerWidth, boolean forceToDesired) {
     float textWidth;
     if (forceToDesired) {
       textWidth = outerWidth;
@@ -370,27 +360,31 @@ public class WXTextDomObject extends WXDomObject {
   }
 
   /**
-   * Update {@link #spanned} according to the give charSequence and {@link #style}
+   * Update {@link #spanned} according to the give charSequence and styles
    * @param text the give raw text.
    * @return an Spanned contains text and spans
    */
-  private
+  protected
   @NonNull
   Spanned createSpanned(String text) {
     if (!TextUtils.isEmpty(text)) {
       SpannableString spannable = new SpannableString(text);
-      List<SetSpanOperation> ops = createSetSpanOperation(spannable.length());
-      if (mFontSize == UNSET) {
-        ops.add(new SetSpanOperation(0, spannable.length(),
-                                     new AbsoluteSizeSpan(WXText.sDEFAULT_SIZE)));
-      }
-      Collections.reverse(ops);
-      for (SetSpanOperation op : ops) {
-        op.execute(spannable);
-      }
+      updateSpannable(spannable, Spanned.SPAN_INCLUSIVE_EXCLUSIVE);
       return spannable;
     }
     return new SpannableString("");
+  }
+
+  protected void updateSpannable(Spannable spannable, int spanFlag) {
+    List<SetSpanOperation> ops = createSetSpanOperation(spannable.length(), spanFlag);
+    if (mFontSize == UNSET) {
+      ops.add(new SetSpanOperation(0, spannable.length(),
+                                   new AbsoluteSizeSpan(WXText.sDEFAULT_SIZE), spanFlag));
+    }
+    Collections.reverse(ops);
+    for (SetSpanOperation op : ops) {
+      op.execute(spannable);
+    }
   }
 
   /**
@@ -399,34 +393,35 @@ public class WXTextDomObject extends WXDomObject {
    * @param end the end character of the text.
    * @return a task list which contains {@link SetSpanOperation}.
    */
-  private List<SetSpanOperation> createSetSpanOperation(int end) {
+  private List<SetSpanOperation> createSetSpanOperation(int end, int spanFlag) {
     List<SetSpanOperation> ops = new LinkedList<>();
     int start = 0;
     if (end >= start) {
       if (mTextDecoration == WXTextDecoration.UNDERLINE) {
         ops.add(new SetSpanOperation(start, end,
-                                     new UnderlineSpan()));
+                                     new UnderlineSpan(), spanFlag));
       }
       if (mTextDecoration == WXTextDecoration.LINETHROUGH) {
         ops.add(new SetSpanOperation(start, end,
-                                     new StrikethroughSpan()));
+                                     new StrikethroughSpan(), spanFlag));
       }
       if (mIsColorSet) {
         ops.add(new SetSpanOperation(start, end,
-                                     new ForegroundColorSpan(mColor)));
+                                     new ForegroundColorSpan(mColor), spanFlag));
       }
       if (mFontSize != UNSET) {
-        ops.add(new SetSpanOperation(start, end, new AbsoluteSizeSpan(mFontSize)));
+        ops.add(new SetSpanOperation(start, end, new AbsoluteSizeSpan(mFontSize), spanFlag));
       }
       if (mFontStyle != UNSET
           || mFontWeight != UNSET
           || mFontFamily != null) {
         ops.add(new SetSpanOperation(start, end,
-                                     new WXCustomStyleSpan(mFontStyle, mFontWeight, mFontFamily)));
+                                     new WXCustomStyleSpan(mFontStyle, mFontWeight, mFontFamily),
+                                     spanFlag));
       }
-      ops.add(new SetSpanOperation(start, end, new AlignmentSpan.Standard(mAlignment)));
+      ops.add(new SetSpanOperation(start, end, new AlignmentSpan.Standard(mAlignment), spanFlag));
       if (mLineHeight != UNSET) {
-        ops.add(new SetSpanOperation(start, end, new WXLineHeightSpan(mLineHeight)));
+        ops.add(new SetSpanOperation(start, end, new WXLineHeightSpan(mLineHeight), spanFlag));
       }
     }
     return ops;
@@ -461,5 +456,4 @@ public class WXTextDomObject extends WXDomObject {
     }
     return result;
   }
-
 }

@@ -205,23 +205,31 @@
 package com.taobao.weex.ui.component;
 
 import android.content.Context;
+import android.support.annotation.NonNull;
 import android.text.TextUtils;
 
 import com.taobao.weex.WXSDKInstance;
-import com.taobao.weex.WXSDKManager;
-import com.taobao.weex.common.WXDomPropConstant;
+import com.taobao.weex.annotation.Component;
+import com.taobao.weex.common.Constants;
+import com.taobao.weex.dom.ImmutableDomObject;
 import com.taobao.weex.dom.WXDomObject;
 import com.taobao.weex.ui.component.list.WXListComponent;
-import com.taobao.weex.ui.view.WXBaseRefreshLayout;
 import com.taobao.weex.ui.view.WXFrameLayout;
+import com.taobao.weex.ui.view.WXRefreshLayout;
 import com.taobao.weex.ui.view.refresh.core.WXSwipeLayout;
 import com.taobao.weex.ui.view.refresh.wrapper.BaseBounceView;
 import com.taobao.weex.utils.WXUtils;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * div component
  */
+@Component(lazyload = false)
 public class WXRefresh extends WXBaseRefresh implements WXSwipeLayout.WXOnRefreshListener{
+
+  public static final String HIDE = "hide";
 
   @Deprecated
   public WXRefresh(WXSDKInstance instance, WXDomObject dom, WXVContainer parent, String instanceId, boolean isLazy) {
@@ -233,21 +241,43 @@ public class WXRefresh extends WXBaseRefresh implements WXSwipeLayout.WXOnRefres
   }
 
   @Override
-  protected WXFrameLayout initComponentHostView(Context context) {
-    return new WXBaseRefreshLayout(context);
+  protected WXFrameLayout initComponentHostView(@NonNull Context context) {
+    return new WXRefreshLayout(context);
   }
 
   @Override
   public void onRefresh() {
-    if (mDomObj.event != null && mDomObj.event.contains(WXEventType.ONREFRESH)) {
-      WXSDKManager.getInstance().fireEvent(mInstanceId, getRef(), WXEventType.ONREFRESH);
+    if(isDestoryed()){
+      return;
+    }
+    
+    ImmutableDomObject dom;
+    if ((dom = getDomObject())!= null && dom.getEvents().contains(Constants.Event.ONREFRESH)) {
+      fireEvent(Constants.Event.ONREFRESH);
+    }
+  }
+
+  @Override
+  public int getLayoutTopOffsetForSibling() {
+    //offset siblings
+    return getParent() instanceof Scrollable ? -Math.round(getDomObject().getLayoutHeight()) : 0;
+  }
+
+  @Override
+  public void onPullingDown(float dy, int pullOutDistance, float viewHeight) {
+    if (getDomObject().getEvents() != null && getDomObject().getEvents().contains(Constants.Event.ONPULLING_DOWN)) {
+      Map<String, Object> data = new HashMap<>();
+      data.put(Constants.Name.DISTANCE_Y, dy);
+      data.put(Constants.Name.PULLING_DISTANCE, pullOutDistance);
+      data.put(Constants.Name.VIEW_HEIGHT, viewHeight);
+      fireEvent(Constants.Event.ONPULLING_DOWN, data);
     }
   }
 
   @Override
   protected boolean setProperty(String key, Object param) {
     switch (key) {
-      case WXDomPropConstant.WX_ATTR_DISPLAY:
+      case Constants.Name.DISPLAY:
         String display = WXUtils.getString(param,null);
         if (display != null)
           setDisplay(display);
@@ -256,10 +286,10 @@ public class WXRefresh extends WXBaseRefresh implements WXSwipeLayout.WXOnRefres
     return super.setProperty(key,param);
   }
 
-  @WXComponentProp(name = WXDomPropConstant.WX_ATTR_DISPLAY)
+  @WXComponentProp(name = Constants.Name.DISPLAY)
   public void setDisplay(String display) {
     if (!TextUtils.isEmpty(display)) {
-      if (display.equals("hide")) {
+      if (display.equals(HIDE)) {
         if (getParent() instanceof WXListComponent || getParent() instanceof WXScroller) {
           if (((BaseBounceView)getParent().getHostView()).getSwipeLayout().isRefreshing()) {
             ((BaseBounceView) getParent().getHostView()).finishPullRefresh();

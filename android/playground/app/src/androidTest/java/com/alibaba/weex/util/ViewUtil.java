@@ -3,6 +3,9 @@ package com.alibaba.weex.util;
 import android.app.Activity;
 import android.content.Context;
 import android.support.v7.widget.RecyclerView;
+import android.test.InstrumentationTestCase;
+import android.test.TouchUtils;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,7 +24,7 @@ public class ViewUtil{
 
     public static ArrayList<View> findViewWithText(ViewGroup vg, String text){
         ArrayList<View> out = new ArrayList<View>();
-        if(null != vg){
+        if(null != vg && !TextUtils.isEmpty(text)){
             vg.findViewsWithText(out, text, View.FIND_VIEWS_WITH_TEXT);
         }
 
@@ -135,4 +138,11 @@ public class ViewUtil{
         view.measure(w, h);
         return (view.getMeasuredHeight());
     }
+
+    public static void dragQuarterScreenUp(InstrumentationTestCase test, Activity activity) {
+
+        TouchUtils.dragQuarterScreenUp(test, activity);
+    }
+
+
 }

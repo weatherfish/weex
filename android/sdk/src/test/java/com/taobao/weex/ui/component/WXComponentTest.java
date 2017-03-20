@@ -204,77 +204,97 @@
  */
 package com.taobao.weex.ui.component;
 
+import com.taobao.weappplus_sdk.BuildConfig;
+import com.taobao.weex.common.Constants;
+import com.taobao.weex.ui.view.border.BorderDrawable;
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.robolectric.RobolectricGradleTestRunner;
+import org.robolectric.annotation.Config;
 
 import static org.junit.Assert.*;
 
 /**
  * Created by sospartan on 7/27/16.
  */
+@RunWith(RobolectricGradleTestRunner.class)
+@Config(constants = BuildConfig.class, sdk = 19)
+@PowerMockIgnore( {"org.mockito.*", "org.robolectric.*", "android.*"})
 public class WXComponentTest {
 
-  @Test
-  public void testSetLayout() throws Exception {
+  WXComponent component;
 
-  }
-
-  @Test
-  public void testSetPadding() throws Exception {
-
+  @Before
+  public void setUp() throws Exception {
+    WXVContainer root = WXDivTest.create();
+    ComponentTest.create(root);
+    component = WXDivTest.create(root);
+    ComponentTest.create(component);
   }
 
   @Test
   public void testSetProperty() throws Exception {
 
+    assertTrue(component.setProperty(Constants.Name.VISIBILITY,null));
+    assertTrue(component.setProperty(Constants.Name.VISIBILITY, Constants.Value.VISIBLE));
+
+    assertTrue(component.setProperty(Constants.Name.DISABLED,true));
+    assertTrue(component.setProperty(Constants.Name.POSITION, Constants.Value.FIXED));
+    assertTrue(component.setProperty(Constants.Name.BACKGROUND_COLOR, "#ffffff"));
+    assertTrue(component.setProperty(Constants.Name.OPACITY, 0.5f));
+    assertTrue(component.setProperty(Constants.Name.BORDER_RADIUS,0.5f));
+    assertTrue(component.setProperty(Constants.Name.BORDER_RADIUS,null));
+    assertTrue(component.setProperty(Constants.Name.BORDER_WIDTH,null));
+    assertTrue(component.setProperty(Constants.Name.BORDER_WIDTH,10));
+    assertTrue(component.setProperty(Constants.Name.BORDER_STYLE,null));
+    assertTrue(component.setProperty(Constants.Name.BORDER_STYLE, "SOLID"));
+    assertTrue(component.setProperty(Constants.Name.BORDER_COLOR,null));
+    assertTrue(component.setProperty(Constants.Name.BORDER_COLOR, "#ff0000"));
+
+    assertTrue(component.setProperty(Constants.Name.BORDER_TOP_LEFT_RADIUS, 1));
+    assertTrue(component.setProperty(Constants.Name.BORDER_TOP_RIGHT_RADIUS, 1));
+    assertTrue(component.setProperty(Constants.Name.BORDER_BOTTOM_LEFT_RADIUS, 1));
+    assertTrue(component.setProperty(Constants.Name.BORDER_BOTTOM_RIGHT_RADIUS, 1));
+    assertTrue(component.setProperty(Constants.Name.BORDER_TOP_WIDTH, 1));
+    assertTrue(component.setProperty(Constants.Name.BORDER_LEFT_WIDTH, 1));
+    assertTrue(component.setProperty(Constants.Name.BORDER_BOTTOM_WIDTH, 1));
+    assertTrue(component.setProperty(Constants.Name.BORDER_RIGHT_WIDTH,1));
+
+    assertTrue(component.setProperty(Constants.Name.BORDER_TOP_COLOR, "#ff0000"));
+    assertTrue(component.setProperty(Constants.Name.BORDER_BOTTOM_COLOR, "#ff0000"));
+    assertTrue(component.setProperty(Constants.Name.BORDER_LEFT_COLOR, "#ff0000"));
+    assertTrue(component.setProperty(Constants.Name.BORDER_RIGHT_COLOR, "#ff0000"));
+
+    assertTrue(component.setProperty(Constants.Name.WIDTH, null));
+    assertTrue(component.setProperty(Constants.Name.MIN_WIDTH, null));
+    assertTrue(component.setProperty(Constants.Name.MAX_WIDTH, null));
+    assertTrue(component.setProperty(Constants.Name.HEIGHT, null));
+    assertTrue(component.setProperty(Constants.Name.MIN_HEIGHT, null));
+    assertTrue(component.setProperty(Constants.Name.MAX_HEIGHT, null));
+    assertTrue(component.setProperty(Constants.Name.ALIGN_ITEMS, null));
+    assertTrue(component.setProperty(Constants.Name.ALIGN_SELF, null));
+    assertTrue(component.setProperty(Constants.Name.FLEX, null));
+    assertTrue(component.setProperty(Constants.Name.FLEX_DIRECTION, null));
+    assertTrue(component.setProperty(Constants.Name.JUSTIFY_CONTENT, null));
+    assertTrue(component.setProperty(Constants.Name.FLEX_WRAP, null));
+    assertTrue(component.setProperty(Constants.Name.MARGIN, null));
+    assertTrue(component.setProperty(Constants.Name.MARGIN_TOP, null));
+    assertTrue(component.setProperty(Constants.Name.MARGIN_LEFT, null));
+    assertTrue(component.setProperty(Constants.Name.MARGIN_RIGHT, null));
+    assertTrue(component.setProperty(Constants.Name.MARGIN_BOTTOM, null));
+    assertTrue(component.setProperty(Constants.Name.PADDING, null));
+    assertTrue(component.setProperty(Constants.Name.PADDING_TOP, null));
+    assertTrue(component.setProperty(Constants.Name.PADDING_LEFT, null));
+    assertTrue(component.setProperty(Constants.Name.PADDING_RIGHT, null));
+    assertTrue(component.setProperty(Constants.Name.PADDING_BOTTOM, null));
+
   }
 
-  @Test
-  public void testSetDisabled() throws Exception {
-
-  }
 
   @Test
-  public void testSetSticky() throws Exception {
-
-  }
-
-  @Test
-  public void testSetBackgroundColor() throws Exception {
-
-  }
-
-  @Test
-  public void testSetOpacity() throws Exception {
-
-  }
-
-  @Test
-  public void testSetBorderRadius() throws Exception {
-
-  }
-
-  @Test
-  public void testSetBorderWidth() throws Exception {
-
-  }
-
-  @Test
-  public void testSetBorderStyle() throws Exception {
-
-  }
-
-  @Test
-  public void testSetBorderColor() throws Exception {
-
-  }
-
-  @Test
-  public void testGetVisibility() throws Exception {
-
-  }
-
-  @Test
-  public void testSetVisibility() throws Exception {
-
+  public void testAddEvent() throws Exception {
+    component.addEvent(Constants.Event.FOCUS);
   }
 }
